@@ -2,6 +2,8 @@
 
 A Model Context Protocol server that wires [Publer](https://publer.com) into ChatGPT / Claude / any MCP-aware assistant. **One conversation runs an entire multi-network social marketing workflow** — research, brainstorm, draft, schedule, publish, and analytics — without ever opening a dashboard.
 
+> **Companion web client:** the sibling repo [`mcp-client`](../mcp-client) is a Next.js + Gemini 2.5 Flash dashboard that drives this server (workspace sidebar, agentic chat, streaming tool calls). Use either ChatGPT Apps SDK dev mode, Claude Desktop, **or** the companion client.
+
 ## why this changes marketing
 
 A normal week for a social manager: log into Publer, open analytics, screenshot best times, switch to a doc, draft captions per network, copy them back, attach media, set timezones, repeat across Facebook / Instagram / X / LinkedIn / TikTok / Threads, then check what failed.
