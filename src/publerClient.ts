@@ -5,7 +5,23 @@
       AutoSchedulePostInput,
       CampaignContextInput,
       CampaignPostItem,
+      CompetitorAnalysisInput,
+      CreateArticlePostInput,
+      CreateCarouselPostInput,
+      CreateDocumentPostInput,
+      CreateGifPostInput,
+      CreateLinkPostInput,
+      CreatePollPostInput,
+      CreateRecyclingPostInput,
+      CreateReelPostInput,
+      CreateShortPostInput,
+      CreateStoryPostInput,
+      CreateVideoPostInput,
+      PublishStatusNowInput,
+      HashtagAnalysisInput,
       ListByStateInput,
+      ListMediaInput,
+      ListMembersInput,
       RecurringPostInput,
       SaveIdeasInput,
       SearchPostsInput,
@@ -613,6 +629,333 @@
         return {
           summary: hasFailures(job.data) ? "Recurring post job completed with failures." : "Recurring post created.",
           data: { job_id: jobId, repeat: input.repeat, job_status: job.data }
+        };
+      }
+
+      async listMedia(input: ListMediaInput): Promise<PublerResult> {
+        const workspaceId = resolveWorkspaceId(input.workspaceId);
+        const data = await this.request("GET", "/media", {
+          workspaceId,
+          query: {
+            "ids[]": input.ids,
+            "types[]": input.types,
+            "used[]": input.used,
+            "source[]": input.source,
+            search: input.search,
+            page: input.page
+          }
+        });
+        const total = asRecord(data)?.total;
+        const media = extractCollection(data, "media");
+        return {
+          summary: `Fetched ${typeof total === "number" ? total : media.length} media item${media.length === 1 ? "" : "s"} from Publer.`,
+          data
+        };
+      }
+
+      async listWorkspaceMembers(input: ListMembersInput): Promise<PublerResult> {
+        const workspaceId = resolveWorkspaceId(input.workspaceId);
+        const data = await this.request("GET", "/members", { workspaceId });
+        const members = extractCollection(data, "members");
+        return {
+          summary: `Found ${members.length} workspace member${members.length === 1 ? "" : "s"}.`,
+          data
+        };
+      }
+
+      async getHashtagAnalysis(input: HashtagAnalysisInput): Promise<PublerResult> {
+        const workspaceId = resolveWorkspaceId(input.workspaceId);
+        const accountId = input.accountId ?? resolveAccountId(undefined);
+        const data = await this.request("GET", `/analytics/${encodeURIComponent(accountId)}/hashtags`, {
+          workspaceId,
+          query: { from: input.from, to: input.to, page: input.page }
+        });
+        return { summary: `Fetched hashtag analysis for ${accountId}.`, data };
+      }
+
+      async getCompetitorAnalysis(input: CompetitorAnalysisInput): Promise<PublerResult> {
+        const workspaceId = resolveWorkspaceId(input.workspaceId);
+        const accountId = input.accountId ?? resolveAccountId(undefined);
+        const data = await this.request("GET", `/analytics/${encodeURIComponent(accountId)}/competitors`, {
+          workspaceId,
+          query: {
+            "competitor_ids[]": input.competitorIds,
+            from: input.from,
+            to: input.to
+          }
+        });
+        return { summary: `Fetched competitor analysis for ${accountId}.`, data };
+      }
+
+      async createLinkPost(input: CreateLinkPostInput): Promise<PublerResult> {
+        return this.createContentPost({
+          workspaceId: resolveWorkspaceId(input.workspaceId),
+          accountId: resolveAccountId(input.accountId),
+          provider: input.provider ?? (config.defaultProvider as Provider),
+          scheduledAt: input.scheduledAt,
+          network: {
+            type: "link",
+            text: input.text,
+            url: input.url,
+            ...(input.title ? { title: input.title } : {}),
+            ...(input.description ? { description: input.description } : {}),
+            ...(input.image ? { image: input.image } : {})
+          },
+          successLabel: "link post"
+        });
+      }
+
+      async createPollPost(input: CreatePollPostInput): Promise<PublerResult> {
+        return this.createContentPost({
+          workspaceId: resolveWorkspaceId(input.workspaceId),
+          accountId: resolveAccountId(input.accountId),
+          provider: input.provider ?? (config.defaultProvider as Provider),
+          scheduledAt: input.scheduledAt,
+          network: {
+            type: "poll",
+            text: input.text,
+            poll: {
+              options: input.options,
+              duration: input.durationDays ?? 1
+            }
+          },
+          successLabel: "poll post"
+        });
+      }
+
+      async createRecyclingPost(input: CreateRecyclingPostInput): Promise<PublerResult> {
+        const workspaceId = resolveWorkspaceId(input.workspaceId);
+        const accountId = resolveAccountId(input.accountId);
+        const provider = input.provider ?? (config.defaultProvider as Provider);
+        const recycling: Record<string, unknown> = {
+          solo: input.solo ?? true,
+          gap: input.gap,
+          gap_freq: input.gapFreq,
+          start_date: input.startDate
+        };
+        if (input.expireCount) recycling.expire_count = input.expireCount;
+        if (input.expireDate) recycling.expire_date = input.expireDate;
+
+        const response = await this.request("POST", "/posts/schedule", {
+          workspaceId,
+          body: {
+            bulk: {
+              state: "scheduled",
+              posts: [
+                {
+                  networks: { [provider]: { type: "status", text: input.text } },
+                  accounts: [{ id: accountId, labels: [""] }],
+                  range: { start_date: input.startDate, end_date: input.expireDate ?? null },
+                  recycling
+                }
+              ]
+            }
+          }
+        });
+
+        const jobId = this.extractJobId(response);
+        const job = await this.waitForJob({ workspaceId, jobId });
+        return {
+          summary: hasFailures(job.data) ? "Recycling post job completed with failures." : "Recycling post created.",
+          data: { job_id: jobId, job_status: job.data }
+        };
+      }
+
+      async createVideoPost(input: CreateVideoPostInput): Promise<PublerResult> {
+        return this.createContentPost({
+          workspaceId: resolveWorkspaceId(input.workspaceId),
+          accountId: resolveAccountId(input.accountId),
+          provider: input.provider ?? (config.defaultProvider as Provider),
+          scheduledAt: input.scheduledAt,
+          network: {
+            type: "video",
+            text: input.text,
+            media: [
+              {
+                id: input.mediaId,
+                type: "video",
+                ...(input.caption ? { caption: input.caption } : {})
+              }
+            ]
+          },
+          successLabel: "video post"
+        });
+      }
+
+      async createCarouselPost(input: CreateCarouselPostInput): Promise<PublerResult> {
+        return this.createContentPost({
+          workspaceId: resolveWorkspaceId(input.workspaceId),
+          accountId: resolveAccountId(input.accountId),
+          provider: input.provider ?? (config.defaultProvider as Provider),
+          scheduledAt: input.scheduledAt,
+          network: {
+            type: "carousel",
+            text: input.text,
+            media: input.mediaIds.map((id) => ({ id, type: "photo" }))
+          },
+          successLabel: `carousel post (${input.mediaIds.length} items)`
+        });
+      }
+
+      async createReelPost(input: CreateReelPostInput): Promise<PublerResult> {
+        return this.createContentPost({
+          workspaceId: resolveWorkspaceId(input.workspaceId),
+          accountId: resolveAccountId(input.accountId),
+          provider: input.provider ?? (config.defaultProvider as Provider),
+          scheduledAt: input.scheduledAt,
+          network: {
+            type: "reel",
+            text: input.text,
+            media: [{ id: input.mediaId, type: "video" }]
+          },
+          successLabel: "reel"
+        });
+      }
+
+      async createGifPost(input: CreateGifPostInput): Promise<PublerResult> {
+        return this.createContentPost({
+          workspaceId: resolveWorkspaceId(input.workspaceId),
+          accountId: resolveAccountId(input.accountId),
+          provider: input.provider ?? (config.defaultProvider as Provider),
+          scheduledAt: input.scheduledAt,
+          network: {
+            type: "gif",
+            text: input.text,
+            media: [{ id: input.mediaId, type: "gif" }]
+          },
+          successLabel: "gif post"
+        });
+      }
+
+      async createShortPost(input: CreateShortPostInput): Promise<PublerResult> {
+        return this.createContentPost({
+          workspaceId: resolveWorkspaceId(input.workspaceId),
+          accountId: resolveAccountId(input.accountId),
+          provider: input.provider ?? (config.defaultProvider as Provider),
+          scheduledAt: input.scheduledAt,
+          network: {
+            type: "short",
+            text: input.text,
+            ...(input.title ? { title: input.title } : {}),
+            media: [{ id: input.mediaId, type: "video" }]
+          },
+          successLabel: "YouTube short"
+        });
+      }
+
+      async createDocumentPost(input: CreateDocumentPostInput): Promise<PublerResult> {
+        return this.createContentPost({
+          workspaceId: resolveWorkspaceId(input.workspaceId),
+          accountId: resolveAccountId(input.accountId),
+          provider: input.provider ?? (config.defaultProvider as Provider),
+          scheduledAt: input.scheduledAt,
+          network: {
+            type: "document",
+            text: input.text,
+            ...(input.title ? { title: input.title } : {}),
+            media: [{ id: input.mediaId, type: "document" }]
+          },
+          successLabel: "document post"
+        });
+      }
+
+      async createArticlePost(input: CreateArticlePostInput): Promise<PublerResult> {
+        const network: Record<string, unknown> = {
+          type: "article",
+          title: input.title,
+          text: input.body
+        };
+        if (input.featuredImageMediaId) {
+          network.media = [{ id: input.featuredImageMediaId, type: "photo" }];
+        }
+        return this.createContentPost({
+          workspaceId: resolveWorkspaceId(input.workspaceId),
+          accountId: resolveAccountId(input.accountId),
+          provider: input.provider ?? (config.defaultProvider as Provider),
+          scheduledAt: input.scheduledAt,
+          network,
+          successLabel: "article post"
+        });
+      }
+
+      async publishStatusNow(input: PublishStatusNowInput): Promise<PublerResult> {
+        if (input.confirm !== true) {
+          throw new Error("Immediate publishing requires confirm=true.");
+        }
+        const workspaceId = resolveWorkspaceId(input.workspaceId);
+        const accountId = resolveAccountId(input.accountId);
+        const provider = input.provider ?? (config.defaultProvider as Provider);
+        const response = await this.request("POST", "/posts/schedule/publish", {
+          workspaceId,
+          body: {
+            bulk: {
+              state: "scheduled",
+              posts: [
+                {
+                  networks: { [provider]: { type: "status", text: input.text } },
+                  accounts: [{ id: accountId }]
+                }
+              ]
+            }
+          }
+        });
+        const jobId = this.extractJobId(response);
+        const job = await this.waitForJob({ workspaceId, jobId });
+        return {
+          summary: hasFailures(job.data) ? "Status publish job completed with failures." : "Status post published now.",
+          data: { job_id: jobId, job_status: job.data }
+        };
+      }
+
+      async createStoryPost(input: CreateStoryPostInput): Promise<PublerResult> {
+        return this.createContentPost({
+          workspaceId: resolveWorkspaceId(input.workspaceId),
+          accountId: resolveAccountId(input.accountId),
+          provider: input.provider ?? (config.defaultProvider as Provider),
+          scheduledAt: input.scheduledAt,
+          network: {
+            type: "story",
+            media: [{ id: input.mediaId, type: "photo" }]
+          },
+          successLabel: "story"
+        });
+      }
+
+      private async createContentPost(input: {
+        workspaceId: string;
+        accountId: string;
+        provider: Provider;
+        network: Record<string, unknown>;
+        scheduledAt?: string;
+        successLabel: string;
+      }): Promise<PublerResult> {
+        const account: Record<string, unknown> = { id: input.accountId };
+        if (input.scheduledAt) account.scheduled_at = input.scheduledAt;
+        const state = input.scheduledAt ? "scheduled" : "draft_public";
+
+        const response = await this.request("POST", "/posts/schedule", {
+          workspaceId: input.workspaceId,
+          body: {
+            bulk: {
+              state,
+              posts: [
+                {
+                  networks: { [input.provider]: input.network },
+                  accounts: [account]
+                }
+              ]
+            }
+          }
+        });
+
+        const jobId = this.extractJobId(response);
+        const job = await this.waitForJob({ workspaceId: input.workspaceId, jobId });
+        const verb = input.scheduledAt ? "scheduled" : "drafted";
+        return {
+          summary: hasFailures(job.data)
+            ? `${input.successLabel} job completed with failures.`
+            : `${input.successLabel} ${verb}.`,
+          data: { job_id: jobId, state, job_status: job.data }
         };
       }
 

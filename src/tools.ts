@@ -11,11 +11,27 @@ import {
   bestTimesSchema,
   campaignContextSchema,
   campaignPlannerSchema,
+  competitorAnalysisSchema,
+  createArticlePostSchema,
+  createCarouselPostSchema,
+  createDocumentPostSchema,
+  createGifPostSchema,
+  createLinkPostSchema,
   createPhotoDraftSchema,
+  createPollPostSchema,
+  createRecyclingPostSchema,
+  createReelPostSchema,
+  createShortPostSchema,
+  createStoryPostSchema,
+  createVideoPostSchema,
+  publishStatusNowSchema,
   deletePostSchema,
   draftPostSchema,
+  hashtagAnalysisSchema,
   jobStatusSchema,
   listByStateSchema,
+  listMediaSchema,
+  listMembersSchema,
   listPostsSchema,
   postInsightsSchema,
   publishPhotoNowSchema,
@@ -296,6 +312,210 @@ const tools: ToolDefinition[] = [
     inputSchema: jsonSchema(campaignPlannerSchema)
   },
   {
+    name: "publer_list_media",
+    description: "List items in the user's own Publer media library with optional filters (ids, types, used, source, search, page). Read-only.",
+    inputSchema: jsonSchema(listMediaSchema),
+    annotations: {
+      title: "List Publer media library",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true
+    }
+  },
+  {
+    name: "publer_list_workspace_members",
+    description: "List the members of the user's selected Publer workspace. Read-only.",
+    inputSchema: jsonSchema(listMembersSchema),
+    annotations: {
+      title: "List Publer workspace members",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true
+    }
+  },
+  {
+    name: "publer_get_hashtag_analysis",
+    description: "Fetch hashtag-performance analytics for a Publer social account in a date range. Read-only.",
+    inputSchema: jsonSchema(hashtagAnalysisSchema),
+    annotations: {
+      title: "Get Publer hashtag analytics",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true
+    }
+  },
+  {
+    name: "publer_get_competitor_analysis",
+    description: "Fetch competitor benchmarking analytics for a Publer social account in a date range. Optional competitorIds filter. Read-only.",
+    inputSchema: jsonSchema(competitorAnalysisSchema),
+    annotations: {
+      title: "Get Publer competitor analytics",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true
+    }
+  },
+  {
+    name: "publer_create_link_post",
+    description: "Create a link post in the user's Publer workspace (network type=link) with a URL and optional preview overrides (title, description, image). If scheduledAt is omitted the post is saved as a workspace draft; if provided it is scheduled in Publer at that ISO 8601 timestamp.",
+    inputSchema: jsonSchema(createLinkPostSchema),
+    annotations: {
+      title: "Create Publer link post",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Creating link post in Publer", "Link post created in Publer")
+  },
+  {
+    name: "publer_create_poll_post",
+    description: "Create a poll post (network type=poll) with 2-4 options and an optional duration in days (default 1). If scheduledAt is omitted, saved as a workspace draft; otherwise scheduled at the ISO 8601 timestamp.",
+    inputSchema: jsonSchema(createPollPostSchema),
+    annotations: {
+      title: "Create Publer poll post",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Creating poll post in Publer", "Poll post created in Publer")
+  },
+  {
+    name: "publer_create_recycling_post",
+    description: "Create a recycling (evergreen) post that Publer reposts on a cadence between startDate and an optional expireDate/expireCount. gap + gapFreq controls the cadence (e.g. gap=2 gapFreq=Week = every 2 weeks). The post is queued in Publer's recycler; nothing is published outside that schedule.",
+    inputSchema: jsonSchema(createRecyclingPostSchema),
+    annotations: {
+      title: "Create Publer recycling post",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Setting up recycling post in Publer", "Recycling post set up in Publer")
+  },
+  {
+    name: "publer_create_video_post",
+    description: "Create a video post (network type=video) in the user's Publer workspace using an existing video mediaId from the library (publer_list_media). If scheduledAt omitted → workspace draft; otherwise scheduled.",
+    inputSchema: jsonSchema(createVideoPostSchema),
+    annotations: {
+      title: "Create Publer video post",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Creating video post in Publer", "Video post created in Publer")
+  },
+  {
+    name: "publer_create_carousel_post",
+    description: "Create a carousel post (network type=carousel) from 2-10 existing photo mediaIds in the user's Publer library. If scheduledAt omitted → workspace draft; otherwise scheduled at that time.",
+    inputSchema: jsonSchema(createCarouselPostSchema),
+    annotations: {
+      title: "Create Publer carousel post",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Creating carousel post in Publer", "Carousel post created in Publer")
+  },
+  {
+    name: "publer_create_reel_post",
+    description: "Create a reel (network type=reel) from an existing video mediaId in the user's Publer library. Use for Instagram/Facebook Reels. If scheduledAt omitted → workspace draft; otherwise scheduled.",
+    inputSchema: jsonSchema(createReelPostSchema),
+    annotations: {
+      title: "Create Publer reel",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Creating reel in Publer", "Reel created in Publer")
+  },
+  {
+    name: "publer_create_gif_post",
+    description: "Create a GIF post (network type=gif) using an existing gif mediaId from the user's Publer library. If scheduledAt omitted → workspace draft; otherwise scheduled.",
+    inputSchema: jsonSchema(createGifPostSchema),
+    annotations: {
+      title: "Create Publer GIF post",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Creating GIF post in Publer", "GIF post created in Publer")
+  },
+  {
+    name: "publer_create_short_post",
+    description: "Create a YouTube Short (network type=short) from an existing video mediaId in the user's Publer library. Optional title. If scheduledAt omitted → workspace draft; otherwise scheduled.",
+    inputSchema: jsonSchema(createShortPostSchema),
+    annotations: {
+      title: "Create YouTube Short via Publer",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Creating YouTube Short in Publer", "Short created in Publer")
+  },
+  {
+    name: "publer_create_document_post",
+    description: "Create a document post (network type=document) from an existing document mediaId in the user's Publer library. Typical use: LinkedIn document posts (PDFs/slides). Optional title. If scheduledAt omitted → workspace draft; otherwise scheduled.",
+    inputSchema: jsonSchema(createDocumentPostSchema),
+    annotations: {
+      title: "Create Publer document post",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Creating document post in Publer", "Document post created in Publer")
+  },
+  {
+    name: "publer_create_article_post",
+    description: "Create a long-form article post (network type=article) in the user's Publer workspace. Typical use: WordPress blog posts. Requires title + body. Optional featured-image mediaId. If scheduledAt omitted → workspace draft; otherwise scheduled.",
+    inputSchema: jsonSchema(createArticlePostSchema),
+    annotations: {
+      title: "Create Publer article post",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Creating article in Publer", "Article created in Publer")
+  },
+  {
+    name: "publer_publish_status_now",
+    description: "Publish a text/status post live immediately on the user's connected Publer account. Requires confirm=true because this sends the post live. For text-only posts; use publer_publish_photo_now for photos.",
+    inputSchema: jsonSchema(publishStatusNowSchema),
+    annotations: {
+      title: "Publish Publer status now",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Publishing status post live via Publer", "Status post published via Publer")
+  },
+  {
+    name: "publer_create_story_post",
+    description: "Create a story (network type=story) from an existing photo/video mediaId in the user's Publer library. For Instagram/Facebook Stories. If scheduledAt omitted → workspace draft; otherwise scheduled.",
+    inputSchema: jsonSchema(createStoryPostSchema),
+    annotations: {
+      title: "Create Publer story",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Creating story in Publer", "Story created in Publer")
+  },
+  {
     name: "publer_save_workspace_drafts",
     description: "Save short text notes as workspace-visible drafts in the user's own Publer workspace (uses state=draft_public with networks.default and no account binding). These appear in the user's Publer Drafts panel — they are NOT posted to any social network, NOT scheduled, and NOT shared outside the workspace. Equivalent to a brainstorm scratchpad living inside Publer. Use `visibility: draft_private` if the note should only be visible to the creator.",
     inputSchema: jsonSchema(saveIdeasSchema),
@@ -501,6 +721,70 @@ export function registerPublerTools(server: Server, client = new PublerClient())
         }
         case "publer_delete_posts": {
           const result = await client.deletePosts(deletePostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_list_media": {
+          const result = await client.listMedia(listMediaSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_list_workspace_members": {
+          const result = await client.listWorkspaceMembers(listMembersSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_get_hashtag_analysis": {
+          const result = await client.getHashtagAnalysis(hashtagAnalysisSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_get_competitor_analysis": {
+          const result = await client.getCompetitorAnalysis(competitorAnalysisSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_link_post": {
+          const result = await client.createLinkPost(createLinkPostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_poll_post": {
+          const result = await client.createPollPost(createPollPostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_recycling_post": {
+          const result = await client.createRecyclingPost(createRecyclingPostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_video_post": {
+          const result = await client.createVideoPost(createVideoPostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_carousel_post": {
+          const result = await client.createCarouselPost(createCarouselPostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_reel_post": {
+          const result = await client.createReelPost(createReelPostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_story_post": {
+          const result = await client.createStoryPost(createStoryPostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_gif_post": {
+          const result = await client.createGifPost(createGifPostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_short_post": {
+          const result = await client.createShortPost(createShortPostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_document_post": {
+          const result = await client.createDocumentPost(createDocumentPostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_article_post": {
+          const result = await client.createArticlePost(createArticlePostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_publish_status_now": {
+          const result = await client.publishStatusNow(publishStatusNowSchema.parse(args));
           return toolResult(result.summary, result.data);
         }
         case "publer_save_workspace_drafts": {

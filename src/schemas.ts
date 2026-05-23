@@ -223,6 +223,154 @@ export const recurringPostSchema = z.object({
   time: z.string().optional()
 });
 
+export const listMediaSchema = z.object({
+  workspaceId: z.string().optional(),
+  ids: z.array(z.string()).optional(),
+  types: z.array(z.enum(["photo", "video", "gif"])).optional(),
+  used: z.array(z.boolean()).optional(),
+  source: z.array(z.enum(["canva", "vista", "postnitro", "contentdrips", "openai", "favorites", "upload"])).optional(),
+  search: z.string().optional(),
+  page: z.number().int().nonnegative().optional()
+});
+
+export const listMembersSchema = z.object({
+  workspaceId: z.string().optional()
+});
+
+export const hashtagAnalysisSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  page: z.number().int().nonnegative().optional()
+});
+
+export const competitorAnalysisSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  competitorIds: z.array(z.string()).optional(),
+  from: z.string().optional(),
+  to: z.string().optional()
+});
+
+export const createLinkPostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  text: z.string().min(1),
+  url: z.string().min(1),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  image: z.string().optional(),
+  scheduledAt: z.string().optional()
+});
+
+export const createPollPostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  text: z.string().min(1),
+  options: z.array(z.string().min(1)).min(2).max(4),
+  durationDays: z.number().int().min(1).max(7).optional().default(1),
+  scheduledAt: z.string().optional()
+});
+
+export const createRecyclingPostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  text: z.string().min(1),
+  startDate: z.string().min(1),
+  gap: z.number().int().min(1),
+  gapFreq: z.enum(["Day", "Week", "Month"]),
+  expireCount: z.number().int().min(1).optional(),
+  expireDate: z.string().optional(),
+  solo: z.boolean().optional().default(true)
+});
+
+export const createVideoPostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  mediaId: z.string().min(1),
+  text: z.string().min(1),
+  caption: z.string().optional(),
+  scheduledAt: z.string().optional()
+});
+
+export const createCarouselPostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  mediaIds: z.array(z.string().min(1)).min(2).max(10),
+  text: z.string().min(1),
+  scheduledAt: z.string().optional()
+});
+
+export const createReelPostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  mediaId: z.string().min(1),
+  text: z.string().min(1),
+  scheduledAt: z.string().optional()
+});
+
+export const createGifPostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  mediaId: z.string().min(1),
+  text: z.string().min(1),
+  scheduledAt: z.string().optional()
+});
+
+export const createShortPostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  mediaId: z.string().min(1),
+  text: z.string().min(1),
+  title: z.string().optional(),
+  scheduledAt: z.string().optional()
+});
+
+export const createDocumentPostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  mediaId: z.string().min(1),
+  text: z.string().min(1),
+  title: z.string().optional(),
+  scheduledAt: z.string().optional()
+});
+
+export const createArticlePostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  title: z.string().min(1),
+  body: z.string().min(1),
+  featuredImageMediaId: z.string().optional(),
+  scheduledAt: z.string().optional()
+});
+
+export const publishStatusNowSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  text: z.string().min(1),
+  confirm: z.boolean()
+});
+
+export const createStoryPostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  mediaId: z.string().min(1),
+  scheduledAt: z.string().optional()
+});
+
 export const saveIdeasSchema = z.object({
   workspaceId: z.string().optional(),
   ideas: z
@@ -300,6 +448,22 @@ export type SearchPostsInput = z.infer<typeof searchPostsSchema>;
 export type ListByStateInput = z.infer<typeof listByStateSchema>;
 export type AutoSchedulePostInput = z.infer<typeof autoSchedulePostSchema>;
 export type RecurringPostInput = z.infer<typeof recurringPostSchema>;
+export type ListMediaInput = z.infer<typeof listMediaSchema>;
+export type ListMembersInput = z.infer<typeof listMembersSchema>;
+export type HashtagAnalysisInput = z.infer<typeof hashtagAnalysisSchema>;
+export type CompetitorAnalysisInput = z.infer<typeof competitorAnalysisSchema>;
+export type CreateLinkPostInput = z.infer<typeof createLinkPostSchema>;
+export type CreatePollPostInput = z.infer<typeof createPollPostSchema>;
+export type CreateRecyclingPostInput = z.infer<typeof createRecyclingPostSchema>;
+export type CreateVideoPostInput = z.infer<typeof createVideoPostSchema>;
+export type CreateCarouselPostInput = z.infer<typeof createCarouselPostSchema>;
+export type CreateReelPostInput = z.infer<typeof createReelPostSchema>;
+export type CreateStoryPostInput = z.infer<typeof createStoryPostSchema>;
+export type CreateGifPostInput = z.infer<typeof createGifPostSchema>;
+export type CreateShortPostInput = z.infer<typeof createShortPostSchema>;
+export type CreateDocumentPostInput = z.infer<typeof createDocumentPostSchema>;
+export type CreateArticlePostInput = z.infer<typeof createArticlePostSchema>;
+export type PublishStatusNowInput = z.infer<typeof publishStatusNowSchema>;
 export type CreatePhotoDraftInput = z.infer<typeof createPhotoDraftSchema>;
 export type SchedulePhotoPostInput = z.infer<typeof schedulePhotoPostSchema>;
 export type PublishPhotoNowInput = z.infer<typeof publishPhotoNowSchema>;

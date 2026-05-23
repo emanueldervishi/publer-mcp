@@ -1,4 +1,14 @@
 node_modules/
 dist/
 .env
+.env.local
+.env.*.local
+.env.production
+.env.development
 npm-debug.log*
+
+# Next.js
+.next/
+out/
+.vercel/
+next-env.d.ts
