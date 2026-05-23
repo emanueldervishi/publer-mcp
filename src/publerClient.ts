@@ -2,9 +2,13 @@
     import type {
       AccountAnalyticsInput,
       BestTimesInput,
+      AutoSchedulePostInput,
       CampaignContextInput,
       CampaignPostItem,
+      ListByStateInput,
+      RecurringPostInput,
       SaveIdeasInput,
+      SearchPostsInput,
       ChatGptFileRef,
       CreatePhotoDraftInput,
       DeletePostInput,
@@ -491,6 +495,124 @@
         return {
           summary: hasFailures(job.data) ? "Photo schedule job completed with failures." : "Photo post scheduled.",
           data: { mediaId: input.mediaId, scheduledAt: input.scheduledAt, job_id: jobId, job_status: job.data }
+        };
+      }
+
+      async searchPosts(input: SearchPostsInput): Promise<PublerResult> {
+        const result = await this.listPosts({
+          workspaceId: input.workspaceId,
+          state: input.state ?? "all",
+          query: input.query,
+          from: input.from,
+          to: input.to,
+          page: input.page
+        });
+        return { summary: `Search for "${input.query}" — ${result.summary}`, data: result.data };
+      }
+
+      async listDrafts(input: ListByStateInput): Promise<PublerResult> {
+        const result = await this.listPosts({
+          workspaceId: input.workspaceId,
+          state: "draft",
+          accountIds: input.accountIds,
+          from: input.from,
+          to: input.to,
+          postType: input.postType,
+          page: input.page
+        });
+        return { summary: `Fetched draft posts. ${result.summary}`, data: result.data };
+      }
+
+      async listPublishedPosts(input: ListByStateInput): Promise<PublerResult> {
+        const result = await this.listPosts({
+          workspaceId: input.workspaceId,
+          state: "published",
+          accountIds: input.accountIds,
+          from: input.from,
+          to: input.to,
+          postType: input.postType,
+          page: input.page
+        });
+        return { summary: `Fetched published posts. ${result.summary}`, data: result.data };
+      }
+
+      async listFailedPosts(input: ListByStateInput): Promise<PublerResult> {
+        const result = await this.listPosts({
+          workspaceId: input.workspaceId,
+          state: "failed",
+          accountIds: input.accountIds,
+          from: input.from,
+          to: input.to,
+          postType: input.postType,
+          page: input.page
+        });
+        return { summary: `Fetched failed posts. ${result.summary}`, data: result.data };
+      }
+
+      async autoSchedulePost(input: AutoSchedulePostInput): Promise<PublerResult> {
+        const workspaceId = resolveWorkspaceId(input.workspaceId);
+        const accountId = resolveAccountId(input.accountId);
+        const provider = input.provider ?? (config.defaultProvider as Provider);
+        const response = await this.schedulePayload(workspaceId, {
+          bulk: {
+            state: "scheduled",
+            posts: [
+              {
+                networks: { [provider]: { type: "status", text: input.text } },
+                accounts: [{ id: accountId }],
+                share_next: input.shareNext ?? false,
+                range: {
+                  start_date: input.startDate,
+                  ...(input.endDate ? { end_date: input.endDate } : {})
+                },
+                auto: true
+              }
+            ]
+          }
+        });
+
+        const jobId = this.extractJobId(response);
+        const job = await this.waitForJob({ workspaceId, jobId });
+        return {
+          summary: hasFailures(job.data) ? "Auto-schedule job completed with failures." : "Post auto-scheduled in Publer using your posting schedule.",
+          data: { job_id: jobId, job_status: job.data }
+        };
+      }
+
+      async createRecurringPost(input: RecurringPostInput): Promise<PublerResult> {
+        const workspaceId = resolveWorkspaceId(input.workspaceId);
+        const accountId = resolveAccountId(input.accountId);
+        const provider = input.provider ?? (config.defaultProvider as Provider);
+        if (input.repeat === "weekly" && (!input.daysOfWeek || input.daysOfWeek.length === 0)) {
+          throw new Error("daysOfWeek is required when repeat=weekly (1=Monday … 7=Sunday).");
+        }
+        const recurring: Record<string, unknown> = {
+          start_date: input.startDate,
+          repeat: input.repeat
+        };
+        if (input.endDate) recurring.end_date = input.endDate;
+        if (input.daysOfWeek) recurring.days_of_week = input.daysOfWeek;
+        if (input.repeatRate) recurring.repeat_rate = input.repeatRate;
+        if (input.time) recurring.time = input.time;
+
+        const response = await this.schedulePayload(workspaceId, {
+          bulk: {
+            state: "recurring",
+            posts: [
+              {
+                networks: { [provider]: { type: "status", text: input.text } },
+                accounts: [{ id: accountId }],
+                recurring
+              }
+            ]
+          }
+        });
+
+        const jobId = this.extractJobId(response);
+        const job = await this.waitForJob({ workspaceId, jobId });
+        return {
+          summary: hasFailures(job.data) ? "Recurring post job completed with failures." : "Recurring post created.",
+          data: { job_id: jobId, repeat: input.repeat, job_status: job.data }
         };
       }
 

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { PublerClient } from "./publerClient.js";
 import {
   accountAnalyticsSchema,
+  autoSchedulePostSchema,
   bestTimesSchema,
   campaignContextSchema,
   campaignPlannerSchema,
@@ -14,12 +15,15 @@ import {
   deletePostSchema,
   draftPostSchema,
   jobStatusSchema,
+  listByStateSchema,
   listPostsSchema,
   postInsightsSchema,
   publishPhotoNowSchema,
+  recurringPostSchema,
   saveIdeasSchema,
   schedulePhotoPostSchema,
   schedulePostSchema,
+  searchPostsSchema,
   smartCampaignSchema,
   updatePostSchema,
   uploadMediaFromChatGptFileSchema
@@ -114,6 +118,18 @@ function errorResult(error: unknown) {
 
 const tools: ToolDefinition[] = [
   {
+    name: "publer_get_current_user",
+    description: "Return the profile of the user whose API key is in use (id, name, email, picture). Read-only.",
+    inputSchema: jsonSchema(z.object({})),
+    annotations: {
+      title: "Get current Publer user",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true
+    }
+  },
+  {
     name: "publer_list_workspaces",
     description: "List Publer workspaces available to the authenticated API key.",
     inputSchema: jsonSchema(z.object({}))
@@ -127,6 +143,80 @@ const tools: ToolDefinition[] = [
     name: "publer_list_posts",
     description: "List Publer posts with optional state, account, date, query, and post type filters.",
     inputSchema: jsonSchema(listPostsSchema)
+  },
+  {
+    name: "publer_list_drafts",
+    description: "List the user's Publer drafts (convenience wrapper around publer_list_posts with state=draft). Filter by account, date range, post type, page.",
+    inputSchema: jsonSchema(listByStateSchema),
+    annotations: {
+      title: "List Publer drafts",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true
+    }
+  },
+  {
+    name: "publer_list_published_posts",
+    description: "List the user's already-published Publer posts (convenience wrapper around publer_list_posts with state=published). Filter by account, date range, post type, page.",
+    inputSchema: jsonSchema(listByStateSchema),
+    annotations: {
+      title: "List Publer published posts",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true
+    }
+  },
+  {
+    name: "publer_list_failed_posts",
+    description: "List the user's Publer posts that failed to publish (convenience wrapper around publer_list_posts with state=failed). Useful for debugging delivery issues.",
+    inputSchema: jsonSchema(listByStateSchema),
+    annotations: {
+      title: "List Publer failed posts",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true
+    }
+  },
+  {
+    name: "publer_search_posts",
+    description: "Full-text search the user's Publer posts by keyword. Optional state filter (defaults to all states), date range, page.",
+    inputSchema: jsonSchema(searchPostsSchema),
+    annotations: {
+      title: "Search Publer posts",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true
+    }
+  },
+  {
+    name: "publer_auto_schedule_post",
+    description: "Auto-schedule a text post into one of the user's own Publer posting-schedule slots between startDate and optional endDate. Requires the user to have a Publer posting schedule already configured on that account. Polls the job until done. The post is queued in Publer and will only be published by Publer's scheduler at the chosen time.",
+    inputSchema: jsonSchema(autoSchedulePostSchema),
+    annotations: {
+      title: "Auto-schedule Publer post",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Auto-scheduling post in Publer", "Post auto-scheduled in Publer")
+  },
+  {
+    name: "publer_create_recurring_post",
+    description: "Create a recurring text post in the user's own Publer workspace (daily, weekly, or monthly cadence). repeat=weekly requires daysOfWeek (1=Mon ... 7=Sun). repeatRate controls every-N (e.g. repeat=weekly + repeatRate=2 means every other week). The post repeats on Publer's scheduler until endDate; nothing is published outside this schedule.",
+    inputSchema: jsonSchema(recurringPostSchema),
+    annotations: {
+      title: "Create recurring Publer post",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    _meta: invocationMeta("Setting up recurring post in Publer", "Recurring post set up in Publer")
   },
   {
     name: "publer_create_draft",
@@ -206,17 +296,17 @@ const tools: ToolDefinition[] = [
     inputSchema: jsonSchema(campaignPlannerSchema)
   },
   {
-    name: "publer_save_ideas",
-    description: "Save short text notes to the user's own Publer Ideas panel. These are private notes inside Publer — they are NOT posted to any social network, NOT scheduled, and NOT shared with anyone outside the user's Publer workspace. Equivalent to writing to a personal scratchpad inside Publer.",
+    name: "publer_save_workspace_drafts",
+    description: "Save short text notes as workspace-visible drafts in the user's own Publer workspace (uses state=draft_public with networks.default and no account binding). These appear in the user's Publer Drafts panel — they are NOT posted to any social network, NOT scheduled, and NOT shared outside the workspace. Equivalent to a brainstorm scratchpad living inside Publer. Use `visibility: draft_private` if the note should only be visible to the creator.",
     inputSchema: jsonSchema(saveIdeasSchema),
     annotations: {
-      title: "Save notes to Publer Ideas",
+      title: "Save brainstorm drafts to Publer",
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
       openWorldHint: true
     },
-    _meta: invocationMeta("Saving notes to your Publer Ideas", "Notes saved to your Publer Ideas")
+    _meta: invocationMeta("Saving brainstorm drafts to Publer", "Brainstorm drafts saved in Publer")
   },
   {
     name: "publer_get_campaign_context",
@@ -340,6 +430,10 @@ export function registerPublerTools(server: Server, client = new PublerClient())
       const args = request.params.arguments ?? {};
 
       switch (request.params.name) {
+        case "publer_get_current_user": {
+          const result = await client.getCurrentUser();
+          return toolResult(result.summary, result.data);
+        }
         case "publer_list_workspaces": {
           const result = await client.listWorkspaces();
           return toolResult(result.summary, result.data);
@@ -351,6 +445,30 @@ export function registerPublerTools(server: Server, client = new PublerClient())
         }
         case "publer_list_posts": {
           const result = await client.listPosts(listPostsSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_list_drafts": {
+          const result = await client.listDrafts(listByStateSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_list_published_posts": {
+          const result = await client.listPublishedPosts(listByStateSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_list_failed_posts": {
+          const result = await client.listFailedPosts(listByStateSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_search_posts": {
+          const result = await client.searchPosts(searchPostsSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_auto_schedule_post": {
+          const result = await client.autoSchedulePost(autoSchedulePostSchema.parse(args));
+          return toolResult(result.summary, result.data);
+        }
+        case "publer_create_recurring_post": {
+          const result = await client.createRecurringPost(recurringPostSchema.parse(args));
           return toolResult(result.summary, result.data);
         }
         case "publer_create_draft": {
@@ -385,7 +503,7 @@ export function registerPublerTools(server: Server, client = new PublerClient())
           const result = await client.deletePosts(deletePostSchema.parse(args));
           return toolResult(result.summary, result.data);
         }
-        case "publer_save_ideas": {
+        case "publer_save_workspace_drafts": {
           const result = await client.saveIdeas(saveIdeasSchema.parse(args));
           return toolResult(result.summary, result.data);
         }

@@ -180,6 +180,49 @@ export const publishPhotoNowSchema = z.object({
   confirm: z.boolean()
 });
 
+export const searchPostsSchema = z.object({
+  workspaceId: z.string().optional(),
+  query: z.string().min(1),
+  state: postStateSchema.optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  page: z.number().int().nonnegative().optional()
+});
+
+export const listByStateSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountIds: z.array(z.string()).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  postType: postTypeSchema.optional(),
+  page: z.number().int().nonnegative().optional()
+});
+
+export const autoSchedulePostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  text: z.string().min(1),
+  startDate: z.string().min(1),
+  endDate: z.string().optional(),
+  shareNext: z.boolean().optional().default(false)
+});
+
+const recurringRepeatSchema = z.enum(["daily", "weekly", "monthly"]);
+
+export const recurringPostSchema = z.object({
+  workspaceId: z.string().optional(),
+  accountId: z.string().optional(),
+  provider: providerSchema.optional(),
+  text: z.string().min(1),
+  startDate: z.string().min(1),
+  endDate: z.string().optional(),
+  repeat: recurringRepeatSchema,
+  daysOfWeek: z.array(z.number().int().min(1).max(7)).optional(),
+  repeatRate: z.number().int().min(1).max(52).optional(),
+  time: z.string().optional()
+});
+
 export const saveIdeasSchema = z.object({
   workspaceId: z.string().optional(),
   ideas: z
@@ -253,6 +296,10 @@ export type CampaignPostItem = z.infer<typeof campaignPostItemSchema>;
 export type SmartCampaignInput = z.infer<typeof smartCampaignSchema>;
 export type CampaignContextInput = z.infer<typeof campaignContextSchema>;
 export type SaveIdeasInput = z.infer<typeof saveIdeasSchema>;
+export type SearchPostsInput = z.infer<typeof searchPostsSchema>;
+export type ListByStateInput = z.infer<typeof listByStateSchema>;
+export type AutoSchedulePostInput = z.infer<typeof autoSchedulePostSchema>;
+export type RecurringPostInput = z.infer<typeof recurringPostSchema>;
 export type CreatePhotoDraftInput = z.infer<typeof createPhotoDraftSchema>;
 export type SchedulePhotoPostInput = z.infer<typeof schedulePhotoPostSchema>;
 export type PublishPhotoNowInput = z.infer<typeof publishPhotoNowSchema>;
